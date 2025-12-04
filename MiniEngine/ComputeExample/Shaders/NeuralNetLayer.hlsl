@@ -21,7 +21,7 @@ RWStructuredBuffer<float> g_Output : register(u0);
 [numthreads(BLOCK_SIZE, BLOCK_SIZE, 1)]
 void main(uint2 GTid : SV_GroupThreadID, uint2 GId : SV_GroupID)
 {
-    if (GId.x * TILE_SIZE >= Width * Height || GId.y * TILE_SIZE >= OutputChannels)
+    if (GId.x * TILE_SIZE + GTid.x >= Width * Height || GId.y * TILE_SIZE + GTid.y >= OutputChannels)
         return;
 
     uint2 outputIndex = uint2(GId.x * TILE_SIZE + GTid.x,

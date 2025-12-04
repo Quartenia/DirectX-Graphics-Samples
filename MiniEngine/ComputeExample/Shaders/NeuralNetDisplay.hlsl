@@ -20,9 +20,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
     uint pixelIndex = DTid.y * Width + DTid.x;
     
     // Assumes input is the final output with 3 channels
-    float r = g_Input[pixelIndex * 2 + 0];
-    float g = g_Input[pixelIndex * 2 + 1];
-    //float b = g_Input[pixelIndex * 2 + 2];
+    float r = g_Input[pixelIndex * 4 + 0];
+    float g = g_Input[pixelIndex * 4 + 1];
+    float b = g_Input[pixelIndex * 4 + 2];
     
-    g_ScreenOutput[DTid.xy] = float4(r, g, 0.0, 1.0f);
+    g_ScreenOutput[DTid.xy] = float4(r, g, b, 1.0f);
 }

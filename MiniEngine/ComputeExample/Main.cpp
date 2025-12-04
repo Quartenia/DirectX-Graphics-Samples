@@ -9,6 +9,11 @@
 #include "PipelineState.h"
 #include "BufferManager.h"
 #include "GpuBuffer.h"
+#include "Display.h"
+#include "PostEffects.h"
+#include "FXAA.h"
+#include "DepthOfField.h"
+#include "ModelWeights.h"
 
 #include "CompiledShaders/NeuralNetLayer.h"
 #include "CompiledShaders/NeuralNetDisplay.h"
@@ -16,12 +21,16 @@
 using namespace GameCore;
 using namespace Graphics;
 
+
 class ComputeExample : public GameCore::IGameApp
 {
 public:
 
     ComputeExample()
     {
+        // Set startup resolution for both display and rendering
+        g_DisplayWidth = 1280;
+        g_DisplayHeight = 720;
     }
 
     virtual void Startup( void ) override;
@@ -76,6 +85,16 @@ struct alignas(16) LayerParams
 
 void ComputeExample::Startup( void )
 {
+    // Initialize rendering buffers to match display resolution
+    InitializeRenderingBuffers(g_DisplayWidth, g_DisplayHeight);
+
+    // Disable post-processing effects
+    PostEffects::EnableHDR = false;
+    PostEffects::BloomEnable = false;
+    PostEffects::EnableAdaptation = false;
+    FXAA::Enable = false;
+    DepthOfField::Enable = false;
+
     m_RootSig.Reset(4, 0);
     m_RootSig[0].InitAsConstantBuffer(0); // LayerParams
     m_RootSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1); // Input
@@ -125,19 +144,17 @@ void ComputeExample::Startup( void )
     {
         for (uint32_t x = 0; x < width; ++x)
         {
-            inputUV[(y * width + x) * 2 + 0] = (float)x / width;
-            inputUV[(y * width + x) * 2 + 1] = (float)y / height;
+            inputUV[(y * width + x) * 2 + 0] = (float)x / width * 2.0 - 1.0;
+            inputUV[(y * width + x) * 2 + 1] = (float)y / height * 2.0 - 1.0;
         }
     }
     m_InputUV.Create(L"Input UV", pixelCount * 2, sizeof(float), inputUV.data());
 
     // Weights & Biases Helper
-    auto CreateWeights = [&](StructuredBuffer& buf, const std::wstring& name, uint32_t inCh, uint32_t outCh) {
-        std::vector<float> data(inCh * outCh, 1.0f); // Fill with 1s
+    auto CreateWeights = [&](StructuredBuffer& buf, const std::vector<float>& data, const std::wstring& name, uint32_t inCh, uint32_t outCh) {
         buf.Create(name, inCh * outCh, sizeof(float), data.data());
     };
-    auto CreateBiases = [&](StructuredBuffer& buf, const std::wstring& name, uint32_t count) {
-        std::vector<float> data(count, 1.0f); // Fill with 1s
+    auto CreateBiases = [&](StructuredBuffer& buf, const std::vector<float>& data, const std::wstring& name, uint32_t count) {
         buf.Create(name, count, sizeof(float), data.data());
     };
     auto CreateInter = [&](StructuredBuffer& buf, const std::wstring& name, uint32_t channels) {
@@ -145,23 +162,23 @@ void ComputeExample::Startup( void )
     };
 
     // Layer 1
-    CreateWeights(m_Weights_L1, L"Weights L1", 2, 32);
-    CreateBiases(m_Biases_L1, L"Biases L1", 32);
+    CreateWeights(m_Weights_L1, ModelWeights::net_0_weight, L"Weights L1", 2, 32);
+    CreateBiases(m_Biases_L1, ModelWeights::net_0_bias, L"Biases L1", 32);
     CreateInter(m_Intermediate_1, L"Inter L1", 32);
 
     // Layer 2
-    CreateWeights(m_Weights_L2, L"Weights L2", 32, 32);
-    CreateBiases(m_Biases_L2, L"Biases L2", 32);
+    CreateWeights(m_Weights_L2, ModelWeights::net_2_weight, L"Weights L2", 32, 32);
+    CreateBiases(m_Biases_L2, ModelWeights::net_2_weight, L"Biases L2", 32);
     CreateInter(m_Intermediate_2, L"Inter L2", 32);
 
     // Layer 3
-    CreateWeights(m_Weights_L3, L"Weights L3", 32, 32);
-    CreateBiases(m_Biases_L3, L"Biases L3", 32);
+    CreateWeights(m_Weights_L3, ModelWeights::net_4_weight, L"Weights L3", 32, 32);
+    CreateBiases(m_Biases_L3, ModelWeights::net_4_weight, L"Biases L3", 32);
     CreateInter(m_Intermediate_3, L"Inter L3", 32);
 
     // Layer 4
-    CreateWeights(m_Weights_L4, L"Weights L4", 32, 4);
-    CreateBiases(m_Biases_L4, L"Biases L4", 4);
+    CreateWeights(m_Weights_L4, ModelWeights::net_6_weight, L"Weights L4", 32, 4);
+    CreateBiases(m_Biases_L4, ModelWeights::net_6_weight, L"Biases L4", 4);
     CreateInter(m_FinalOutput, L"Final Output", 4);
 }
 

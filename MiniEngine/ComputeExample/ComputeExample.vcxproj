@@ -54,6 +54,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ModelWeights.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
