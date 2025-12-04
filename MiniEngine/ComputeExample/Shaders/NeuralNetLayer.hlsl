@@ -1,51 +1,42 @@
-#define BLOCK_SIZE 32
 #define TILE_SIZE 32
 
 cbuffer LayerParams : register(b0)
 {
-    uint InputChannels;
-    uint OutputChannels;
-    uint Width;
-    uint Height;
-    uint ApplyReLU; // 1 = yes, 0 = no
-    uint pad0;
-    uint pad1;
-    uint pad2;
+    uint M;
+    uint K;
+    uint N;
+    uint ApplyReLU;
 }
 
-StructuredBuffer<float> g_Input : register(t0);
-StructuredBuffer<float> g_Weights : register(t1);
-StructuredBuffer<float> g_Biases : register(t2);
-RWStructuredBuffer<float> g_Output : register(u0);
+// M x K
+StructuredBuffer<float> g_Input : register(t0); 
+// K x N
+StructuredBuffer<float> g_Weights : register(t1); 
+// N
+StructuredBuffer<float> g_Biases : register(t2); 
+// M x N
+RWStructuredBuffer<float> g_Output : register(u0); 
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
 {
-    if (groupId.x * TILE_SIZE + groupThreadId.x >= Width * Height || groupId.y * TILE_SIZE + groupThreadId.y >= OutputChannels)
+    uint m = groupId.x * TILE_SIZE + groupThreadId.x;
+    uint n = groupId.y * TILE_SIZE + groupThreadId.y;
+        
+    if (m >= M || n >= N)
         return;
-
-    uint2 outputIndex = uint2(groupId.x * TILE_SIZE + groupThreadId.x,
-        groupId.y * TILE_SIZE + groupThreadId.y);
     
-    uint batchSize = Width * Height;
-    
-
-    float sum = 0.0f;
-    for (uint inCh = 0; inCh < InputChannels; ++inCh)
+    float y = 0.0f;
+    for (uint k = 0; k < K; ++k)
     {
-        // input: batchSize x inputChannels
-        // weight: inputChannels x outputChannels
-        float inVal = g_Input[outputIndex.x * InputChannels + inCh];
-        // Row-major: W[inCh][outCh]
-        float weight = g_Weights[inCh * OutputChannels + outputIndex.y];
-        //float weight = g_Weights[outputIndex.y * InputChannels + inCh];
-        sum += inVal * weight;
+        float x = g_Input[m * K + k];
+        float w = g_Weights[k * N + n];
+        y += x * w;
     }
-    sum += g_Biases[outputIndex.y];
+    y += g_Biases[n];
 
     if (ApplyReLU)
-        sum = max(0.0f, sum);
+        y = max(0.0f, y);
 
-    g_Output[outputIndex.x * OutputChannels + outputIndex.y] = sum;
-  
+    g_Output[m * N + n] = y;
 }

@@ -72,15 +72,18 @@ CREATE_APPLICATION( ComputeExample )
 
 struct alignas(16) LayerParams
 {
-    uint32_t InputChannels;
-    uint32_t OutputChannels;
+    uint32_t M;
+    uint32_t K;
+    uint32_t N;
+    uint32_t ApplyReLU; 
+};
+
+struct alignas(16) DisplayParams
+{
     uint32_t Width;
     uint32_t Height;
-
-    uint32_t ApplyReLU;
     uint32_t pad0;
     uint32_t pad1;
-    uint32_t pad2;
 };
 
 void ComputeExample::Startup( void )
@@ -157,29 +160,29 @@ void ComputeExample::Startup( void )
     auto CreateBiases = [&](StructuredBuffer& buf, const std::vector<float>& data, const std::wstring& name, uint32_t count) {
         buf.Create(name, count, sizeof(float), data.data());
     };
-    auto CreateInter = [&](StructuredBuffer& buf, const std::wstring& name, uint32_t channels) {
+    auto CreateOutput = [&](StructuredBuffer& buf, const std::wstring& name, uint32_t channels) {
         buf.Create(name, pixelCount * channels, sizeof(float)); // No init data
     };
 
     // Layer 1
     CreateWeights(m_Weights_L1, ModelWeights::net_0_weight, L"Weights L1", 2, 32);
     CreateBiases(m_Biases_L1, ModelWeights::net_0_bias, L"Biases L1", 32);
-    CreateInter(m_Intermediate_1, L"Inter L1", 32);
+    CreateOutput(m_Intermediate_1, L"Inter L1", 32);
 
     // Layer 2
     CreateWeights(m_Weights_L2, ModelWeights::net_2_weight, L"Weights L2", 32, 32);
     CreateBiases(m_Biases_L2, ModelWeights::net_2_bias, L"Biases L2", 32);
-    CreateInter(m_Intermediate_2, L"Inter L2", 32);
+    CreateOutput(m_Intermediate_2, L"Inter L2", 32);
 
     // Layer 3
     CreateWeights(m_Weights_L3, ModelWeights::net_4_weight, L"Weights L3", 32, 32);
     CreateBiases(m_Biases_L3, ModelWeights::net_4_bias, L"Biases L3", 32);
-    CreateInter(m_Intermediate_3, L"Inter L3", 32);
+    CreateOutput(m_Intermediate_3, L"Inter L3", 32);
 
     // Layer 4
     CreateWeights(m_Weights_L4, ModelWeights::net_6_weight, L"Weights L4", 32, 4);
     CreateBiases(m_Biases_L4, ModelWeights::net_6_bias, L"Biases L4", 4);
-    CreateInter(m_FinalOutput, L"Final Output", 4);
+    CreateOutput(m_FinalOutput, L"Final Output", 4);
 }
 
 void ComputeExample::Cleanup( void )
@@ -207,7 +210,7 @@ void ComputeExample::RenderScene( void )
 
     auto DispatchLayer = [&](StructuredBuffer& input, StructuredBuffer& weights, StructuredBuffer& biases, StructuredBuffer& output, uint32_t inCh, uint32_t outCh, bool relu)
     {
-        LayerParams params = { inCh, outCh, width, height, (uint32_t)relu };
+        LayerParams params = { width * height, inCh, outCh, (uint32_t)relu };
         Context.SetDynamicConstantBufferView(0, sizeof(params), &params);
         
         Context.TransitionResource(input, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -241,7 +244,7 @@ void ComputeExample::RenderScene( void )
 
     // Display
     Context.SetPipelineState(m_DisplayPSO);
-    LayerParams displayParams = { 4, 0, width, height, 0 }; // Only width/height matter
+    DisplayParams displayParams = { width, height };
     Context.SetDynamicConstantBufferView(0, sizeof(displayParams), &displayParams);
 
     Context.TransitionResource(m_FinalOutput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

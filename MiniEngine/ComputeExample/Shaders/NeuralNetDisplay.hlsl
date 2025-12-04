@@ -2,14 +2,10 @@
 
 cbuffer LayerParams : register(b0)
 {
-    uint InputChannels;
-    uint OutputChannels;
     uint Width;
     uint Height;
-    uint ApplyReLU;
     uint pad0;
     uint pad1;
-    uint pad2;
 }
 
 StructuredBuffer<float> g_Input : register(t0);
