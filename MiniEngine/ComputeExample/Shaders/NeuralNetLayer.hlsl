@@ -1,4 +1,4 @@
-#define TILE_SIZE 32
+static const uint kTileSize = 32;
 
 cbuffer LayerParams : register(b0)
 {
@@ -17,26 +17,73 @@ StructuredBuffer<float> g_Biases : register(t2);
 // M x N
 RWStructuredBuffer<float> g_Output : register(u0); 
 
-[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+groupshared float gs_Input[kTileSize][kTileSize];
+groupshared float gs_Weights[kTileSize][kTileSize];
+
+uint CeilDiv(uint numerator, uint denominator)
+{
+    return (numerator + denominator - 1) / denominator;
+}
+
+[numthreads(kTileSize, kTileSize, 1)]
 void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
 {
-    uint m = groupId.x * TILE_SIZE + groupThreadId.x;
-    uint n = groupId.y * TILE_SIZE + groupThreadId.y;
-        
-    if (m >= M || n >= N)
-        return;
+    // TODO: flat dispatch and coalesced writes
+    uint m = groupId.x * kTileSize + groupThreadId.x;
+    uint n = groupId.y * kTileSize + groupThreadId.y;
     
     float y = 0.0f;
-    for (uint k = 0; k < K; ++k)
+    uint kTiles = CeilDiv(K, kTileSize);
+    
+    // zero the gs
+    gs_Weights[groupThreadId.y][groupThreadId.x] = 0.0;
+    GroupMemoryBarrierWithGroupSync();
+    
+    
+    for (uint tK = 0; tK < kTiles; ++tK)
     {
-        float x = g_Input[m * K + k];
-        float w = g_Weights[k * N + n];
-        y += x * w;
+        uint kI = tK * kTileSize + groupThreadId.y;
+        if (kI < K && m < M)
+        {
+            gs_Input[groupThreadId.y][groupThreadId.x] = g_Input[m * K + kI];
+        }
+        else
+        {
+            gs_Input[groupThreadId.y][groupThreadId.x] = 0.0;
+        }
+        
+        uint kW = tK * kTileSize + groupThreadId.x;
+        if (kW < K && n < N)
+        {
+            gs_Weights[groupThreadId.x][groupThreadId.y] = g_Weights[kW * N + n];
+        }
+        else
+        {
+            gs_Weights[groupThreadId.x][groupThreadId.y] = 0.0;
+
+        }
+        
+        GroupMemoryBarrierWithGroupSync();
+
+        for (uint k = 0; k < kTileSize; ++k)
+        {   
+            float x = gs_Input[k][groupThreadId.x];
+            float w = gs_Weights[k][groupThreadId.y];
+            y += x * w;
+        }
+        GroupMemoryBarrierWithGroupSync();
+
     }
-    y += g_Biases[n];
+   
 
-    if (ApplyReLU)
-        y = max(0.0f, y);
+    if (n < N && m < M)
+    {
+        y += g_Biases[n];
 
-    g_Output[m * N + n] = y;
+        if (ApplyReLU)
+            y = max(0.0f, y);
+        g_Output[m * N + n] = y;
+        
+    }
+    
 }
