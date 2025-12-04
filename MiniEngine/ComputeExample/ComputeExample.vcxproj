@@ -79,6 +79,8 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\ScreenFill.hlsl" />
+    <FxCompile Include="Shaders\NeuralNetLayer.hlsl" />
+    <FxCompile Include="Shaders\NeuralNetDisplay.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
