@@ -18,25 +18,27 @@ StructuredBuffer<float> g_Weights : register(t1);
 StructuredBuffer<float> g_Biases : register(t2);
 RWStructuredBuffer<float> g_Output : register(u0);
 
-[numthreads(BLOCK_SIZE, BLOCK_SIZE, 1)]
-void main(uint2 GTid : SV_GroupThreadID, uint2 GId : SV_GroupID)
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
 {
-    if (GId.x * TILE_SIZE + GTid.x >= Width * Height || GId.y * TILE_SIZE + GTid.y >= OutputChannels)
+    if (groupId.x * TILE_SIZE + groupThreadId.x >= Width * Height || groupId.y * TILE_SIZE + groupThreadId.y >= OutputChannels)
         return;
 
-    uint2 outputIndex = uint2(GId.x * TILE_SIZE + GTid.x,
-        GId.y * TILE_SIZE + GTid.y);
+    uint2 outputIndex = uint2(groupId.x * TILE_SIZE + groupThreadId.x,
+        groupId.y * TILE_SIZE + groupThreadId.y);
     
-    uint bufferIndex = outputIndex.x + outputIndex.y * BLOCK_SIZE;
-
+    uint batchSize = Width * Height;
+    
 
     float sum = 0.0f;
     for (uint inCh = 0; inCh < InputChannels; ++inCh)
     {
+        // input: batchSize x inputChannels
+        // weight: inputChannels x outputChannels
         float inVal = g_Input[outputIndex.x * InputChannels + inCh];
-            // Weights matrix is [InputChannels x OutputChannels] flattened
-            // Row-major: W[inCh][outCh]
+        // Row-major: W[inCh][outCh]
         float weight = g_Weights[inCh * OutputChannels + outputIndex.y];
+        //float weight = g_Weights[outputIndex.y * InputChannels + inCh];
         sum += inVal * weight;
     }
     sum += g_Biases[outputIndex.y];

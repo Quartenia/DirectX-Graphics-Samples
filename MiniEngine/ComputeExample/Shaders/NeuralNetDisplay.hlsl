@@ -7,6 +7,9 @@ cbuffer LayerParams : register(b0)
     uint Width;
     uint Height;
     uint ApplyReLU;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 }
 
 StructuredBuffer<float> g_Input : register(t0);
@@ -24,5 +27,5 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float g = g_Input[pixelIndex * 4 + 1];
     float b = g_Input[pixelIndex * 4 + 2];
     
-    g_ScreenOutput[DTid.xy] = float4(r, g, b, 1.0f);
+    g_ScreenOutput[DTid.xy] = saturate(float4(r, g, b, 1.0f));
 }

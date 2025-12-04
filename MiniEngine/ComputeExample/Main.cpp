@@ -144,8 +144,8 @@ void ComputeExample::Startup( void )
     {
         for (uint32_t x = 0; x < width; ++x)
         {
-            inputUV[(y * width + x) * 2 + 0] = (float)x / width * 2.0 - 1.0;
-            inputUV[(y * width + x) * 2 + 1] = (float)y / height * 2.0 - 1.0;
+            inputUV[(y * width + x) * 2 + 0] = (float)y / height * 2.0 - 1.0;
+            inputUV[(y * width + x) * 2 + 1] = (float)x / width * 2.0 - 1.0;
         }
     }
     m_InputUV.Create(L"Input UV", pixelCount * 2, sizeof(float), inputUV.data());
@@ -168,17 +168,17 @@ void ComputeExample::Startup( void )
 
     // Layer 2
     CreateWeights(m_Weights_L2, ModelWeights::net_2_weight, L"Weights L2", 32, 32);
-    CreateBiases(m_Biases_L2, ModelWeights::net_2_weight, L"Biases L2", 32);
+    CreateBiases(m_Biases_L2, ModelWeights::net_2_bias, L"Biases L2", 32);
     CreateInter(m_Intermediate_2, L"Inter L2", 32);
 
     // Layer 3
     CreateWeights(m_Weights_L3, ModelWeights::net_4_weight, L"Weights L3", 32, 32);
-    CreateBiases(m_Biases_L3, ModelWeights::net_4_weight, L"Biases L3", 32);
+    CreateBiases(m_Biases_L3, ModelWeights::net_4_bias, L"Biases L3", 32);
     CreateInter(m_Intermediate_3, L"Inter L3", 32);
 
     // Layer 4
     CreateWeights(m_Weights_L4, ModelWeights::net_6_weight, L"Weights L4", 32, 4);
-    CreateBiases(m_Biases_L4, ModelWeights::net_6_weight, L"Biases L4", 4);
+    CreateBiases(m_Biases_L4, ModelWeights::net_6_bias, L"Biases L4", 4);
     CreateInter(m_FinalOutput, L"Final Output", 4);
 }
 
