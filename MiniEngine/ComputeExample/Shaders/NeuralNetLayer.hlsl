@@ -29,8 +29,8 @@ uint CeilDiv(uint numerator, uint denominator)
 void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
 {
     // TODO: flat dispatch and coalesced writes
-    uint m = groupId.x * kTileSize + groupThreadId.x;
-    uint n = groupId.y * kTileSize + groupThreadId.y;
+    uint m = groupId.x * kTileSize + groupThreadId.y;
+    uint n = groupId.y * kTileSize + groupThreadId.x;
     
     float y = 0.0f;
     uint kTiles = CeilDiv(K, kTileSize);
@@ -42,24 +42,24 @@ void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
     
     for (uint tK = 0; tK < kTiles; ++tK)
     {
-        uint kI = tK * kTileSize + groupThreadId.y;
+        uint kI = tK * kTileSize + groupThreadId.x;
         if (kI < K && m < M)
         {
-            gs_Input[groupThreadId.y][groupThreadId.x] = g_Input[m * K + kI];
+            gs_Input[groupThreadId.x][groupThreadId.y] = g_Input[m * K + kI];
         }
         else
         {
-            gs_Input[groupThreadId.y][groupThreadId.x] = 0.0;
+            gs_Input[groupThreadId.x][groupThreadId.y] = 0.0;
         }
         
-        uint kW = tK * kTileSize + groupThreadId.x;
+        uint kW = tK * kTileSize + groupThreadId.y;
         if (kW < K && n < N)
         {
-            gs_Weights[groupThreadId.x][groupThreadId.y] = g_Weights[kW * N + n];
+            gs_Weights[groupThreadId.y][groupThreadId.x] = g_Weights[kW * N + n];
         }
         else
         {
-            gs_Weights[groupThreadId.x][groupThreadId.y] = 0.0;
+            gs_Weights[groupThreadId.y][groupThreadId.x] = 0.0;
 
         }
         
@@ -67,8 +67,8 @@ void main(uint2 groupThreadId : SV_GroupThreadID, uint2 groupId : SV_GroupID)
 
         for (uint k = 0; k < kTileSize; ++k)
         {   
-            float x = gs_Input[k][groupThreadId.x];
-            float w = gs_Weights[k][groupThreadId.y];
+            float x = gs_Input[k][groupThreadId.y];
+            float w = gs_Weights[k][groupThreadId.x];
             y += x * w;
         }
         GroupMemoryBarrierWithGroupSync();
